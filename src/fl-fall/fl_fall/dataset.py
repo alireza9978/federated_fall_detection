@@ -245,7 +245,8 @@ def load_data(dataset_name="UpFall", frequancy="50ms", window_size=40, window_st
                     highest_acc_momentom = acc_momentom > acc_momentom.min() + (7 * (acc_momentom.max() - acc_momentom.min()) / 10)
                     highest_gyro_momentom = gyro_momentom > gyro_momentom.min() + (7 * (gyro_momentom.max() - gyro_momentom.min()) / 10)
                     label[highest_gyro_momentom * highest_acc_momentom] = 1
-                    
+                    if label.sum() == 0:
+                        label[highest_acc_momentom] = labels[j]
                     windows_df = windows_df[label == 1]
                     label = label[label == 1]
             else:
@@ -257,7 +258,8 @@ def load_data(dataset_name="UpFall", frequancy="50ms", window_size=40, window_st
                     highest_acc_momentom = acc_momentom > acc_momentom.min() + (7 * (acc_momentom.max() - acc_momentom.min()) / 10)
                     highest_gyro_momentom = gyro_momentom > gyro_momentom.min() + (7 * (gyro_momentom.max() - gyro_momentom.min()) / 10)
                     label[highest_gyro_momentom * highest_acc_momentom] = labels[j]
-                    
+                    if label.sum() == 0:
+                        label[highest_acc_momentom] = labels[j]
                     windows_df = windows_df[label == labels[j]]
                     label = label[label == labels[j]]
                 else:

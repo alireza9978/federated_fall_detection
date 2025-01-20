@@ -5,6 +5,7 @@ from fl_fall.dataset import clean_datasets, load_data, read_labels
 from fl_fall.task import load_model
 from sklearn.model_selection import train_test_split
 import json
+import matplotlib
 
 BUFFER_SIZE = 60000
 BATCH_SIZE = 128
@@ -15,6 +16,7 @@ epochs = 50
 result_path = "/home/s7wu7/project/federated_fall_detection/result/centeralized"
 
 def plot_data_distribution(train_labels, train_users, dataset_name):
+    matplotlib.rcParams.update({'font.size': 32})
     
     label_df = read_labels()
     if dataset_name == "UpFall":
@@ -25,51 +27,68 @@ def plot_data_distribution(train_labels, train_users, dataset_name):
     partitions, counts = np.unique(train_users, return_counts=True)
     x_axis_values = partitions.astype('int').astype("str")
     activities = np.unique(train_labels)
-    green_shades = [
+    color_gradient = [
+        "#FF4500",  # Orange Red
+        "#FF6347",  # Tomato
+        "#FF7F50",  # Coral
+        "#FFA07A",  # Light Salmon
+        "#FFD700",  # Gold
+        "#FFFF00",  # Yellow
         "#ADFF2F",  # Green Yellow
         "#7FFF00",  # Chartreuse
         "#00FF00",  # Lime
-        "#00FF7F",  # Spring Green
         "#00FA9A",  # Medium Spring Green
-        "#90EE90",  # Light Green
+        "#00CED1",  # Dark Turquoise
+        "#1E90FF",  # Dodger Blue
+        "#4169E1",  # Royal Blue
+        "#6A5ACD",  # Slate Blue
+        "#9370DB",  # Medium Purple
+        "#BA55D3",  # Medium Orchid
+        "#D87093",  # Pale Violet Red
+        "#FF69B4",  # Hot Pink
+        "#FF1493",  # Deep Pink
+        "#FF4500",  # Orange Red (loop back to start for a circular gradient)
+        "#8B0000",  # Dark Red
+        "#8B4513",  # Saddle Brown
+        "#A0522D",  # Sienna
+        "#CD5C5C",  # Indian Red
+        "#F08080",  # Light Coral
+        "#FFDAB9",  # Peach Puff
+        "#EEE8AA",  # Pale Goldenrod
         "#98FB98",  # Pale Green
-        "#66CDAA",  # Medium Aquamarine
-        "#20B2AA",  # Light Sea Green
-        "#32CD32",  # Lime Green
-        "#3CB371",  # Medium Sea Green
-        "#2E8B57",  # Sea Green
-        "#8FBC8F",  # Dark Sea Green
-        "#9ACD32",  # Yellow Green
-        "#6B8E23",  # Olive Drab
-        "#8A9A5B",  # Moss Green
-        "#4F7942",  # Fern Green
-        "#228B22",  # Forest Green
-        "#556B2F",  # Dark Olive Green
-        "#006400"   # Dark Green
+        "#AFEEEE",  # Pale Turquoise
+        "#DDA0DD"   # Plum
     ]
-    fig, ax = plt.subplots(figsize=(20, 5))
+
+    fig, ax = plt.subplots(figsize=(40, 25))
+    w = 0.3  # Bar width
 
     until_now = np.zeros(partitions.shape[0])
-    for activity_id, color in zip(activities, green_shades[:activities.shape[0]]):
-        label_name = label_df[label_df[label_df_dataset_name] == activity_id]['ACTIVITY'].values[0]
+    for activity_id, color in zip(activities[::-1], color_gradient[:activities.shape[0]]):
+        # label_name = label_df[label_df[label_df_dataset_name] == activity_id]['ACTIVITY'].values[0]
+        label_name = str(int(activity_id))
         temp_users, temp_counts = np.unique(train_users[train_labels == activity_id], return_counts=True)
         new_values = np.zeros(partitions.shape[0])
         for temp_user, temp_count in zip(temp_users, temp_counts):
             new_values[partitions == temp_user] += temp_count
-        ax.bar(x_axis_values, new_values, bottom=until_now, label=label_name, color=color)
+        ax.bar(x_axis_values, new_values, align='center', width=w, bottom=until_now, label=label_name, color=color)
         until_now += new_values
-    # ax.bar(partition_ids, class_2_counts, bottom=class_1_counts, label='Class 2', color='salmon')
 
     # Set the labels and title
     ax.set_xlabel('Training User IDs')
     ax.set_ylabel('Count')
     ax.set_title('Per Partition Labels Distribution')
-    ax.legend(title='Labels', bbox_to_anchor=(1.28, 1), loc='upper right', borderaxespad=0.)
+    ax.legend(title='Labels', bbox_to_anchor=(1.08, 1), loc='upper right', borderaxespad=0.)
     
+    # Adjust margins and limits to reduce gaps
+    ax.set_xlim(-0.5, len(partitions) - 0.5)
+    plt.margins(x=0.01)  # Reduce default margins
     plt.tight_layout()
+    plt.grid(True)
 
     # Show the plot
-    plt.savefig(f"{result_path}/{dataset_name}_training_data_distribution.png")
+    plt.savefig(f"{result_path}/{dataset_name}_training_data_distribution.svg")
+
         
 def generate_and_save_images(model, epoch, test_input, dataset_name, sample_numbers=10):
     reconstructed = model(test_input, training=False)
@@ -88,7 +107,7 @@ def generate_and_save_images(model, epoch, test_input, dataset_name, sample_numb
             axs[sample_idx, feature_idx].legend()
 
     plt.tight_layout()
-    plt.savefig(f"{result_path}/{dataset_name}_reconstructed_epoch_{epoch}.png")
+    plt.savefig(f"{result_path}/{dataset_name}_reconstructed_epoch_{epoch}.svg")
     plt.close()
 
 @tf.function
@@ -156,11 +175,11 @@ def train(model, model_optimizer, dataset, test_dataset, epochs, dataset_name):
         
 def main():
     # clean_datasets(True)
-    dataset_name = "UpFall" # or "SiSFall"
-    ADL_label_index = 5
+    dataset_name = "SiSFall" # or "UpFall"
+    ADL_label_index = 15
     if user_split:
         data = load_data(dataset_name=dataset_name, frequancy="50ms", two_class=False, window_size=window_size, 
-                        user_split=user_split, window_step=window_step, normlize=True, reload=False)
+                        user_split=user_split, window_step=window_step, normlize=True, reload=True)
         train_dataset, _, train_labels, _, train_users, _ = data
         train_dataset = train_dataset[train_labels > ADL_label_index]
         train_users = train_users[train_labels > ADL_label_index]
@@ -174,14 +193,14 @@ def main():
         train_dataset = train_dataset[train_labels == 0]
         train_labels = train_labels[train_labels == 0]
         
-    x_train, x_val = train_test_split(train_dataset, test_size=0.15, random_state=42)
-    train_dataset = tf.data.Dataset.from_tensor_slices(x_train).shuffle(BUFFER_SIZE).batch(BATCH_SIZE)
-    test_dataset = tf.data.Dataset.from_tensor_slices(x_val).shuffle(BUFFER_SIZE).batch(BATCH_SIZE)
+    # x_train, x_val = train_test_split(train_dataset, test_size=0.15, random_state=42)
+    # train_dataset = tf.data.Dataset.from_tensor_slices(x_train).shuffle(BUFFER_SIZE).batch(BATCH_SIZE)
+    # test_dataset = tf.data.Dataset.from_tensor_slices(x_val).shuffle(BUFFER_SIZE).batch(BATCH_SIZE)
         
     
-    model = load_model()
-    model_optimizer = tf.keras.optimizers.Adam(1e-4)
-    train(model, model_optimizer, train_dataset, test_dataset, epochs, dataset_name)
+    # model = load_model()
+    # model_optimizer = tf.keras.optimizers.Adam(1e-4)
+    # train(model, model_optimizer, train_dataset, test_dataset, epochs, dataset_name)
     
     
 if __name__ == '__main__':
