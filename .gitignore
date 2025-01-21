@@ -164,6 +164,7 @@ cython_debug/
 #Datasets
 datasets/raw/SisFall
 datasets/raw/Up-Fall
+datasets/raw/MobiAct*
 datasets/cleaned/*.csv
 datasets/cleaned_meta.json
 datasets/saved/*.npy

@@ -19,9 +19,9 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 train_dataset, train_labels, unique_train_users, train_users, test_dataset = None, None, None, None, None
 
 BUFFER_SIZE = 60000
-BATCH_SIZE = 128
+BATCH_SIZE = 512
 LATENT_SIZE = 32
-LAYER_SIZE = 128
+LAYER_SIZE = 64
 TIME_STEPS = 40
 N_FEATURES = 6
 
@@ -40,16 +40,16 @@ def create_run_dir(config: UserConfig) -> tuple[Path, str]:
 
     return save_path, run_dir
 
-def load_model():
+def load_model(time_steps = TIME_STEPS):
     """Load and return the LSTM-based model for federated training"""
-    input_layer = layers.Input(shape=(TIME_STEPS, N_FEATURES))
+    input_layer = layers.Input(shape=(time_steps, N_FEATURES))
     lstm_1 = layers.LSTM(LAYER_SIZE, return_sequences=True, kernel_regularizer=tf.keras.regularizers.l2(0.01))(input_layer)
     dropout_1 = layers.Dropout(0.3)(lstm_1)
     latent = layers.LSTM(LATENT_SIZE, return_sequences=True, kernel_regularizer=tf.keras.regularizers.l2(0.01), name="latent_layer")(dropout_1)
     dropout_2 = layers.Dropout(0.3)(latent)
     lstm_2 = layers.LSTM(LAYER_SIZE, return_sequences=True, kernel_regularizer=tf.keras.regularizers.l2(0.01))(dropout_2)
     dropout_3 = layers.Dropout(0.3)(lstm_2)
-    output_layer = layers.TimeDistributed(layers.Dense(N_FEATURES, activation='linear'))(dropout_3)
+    output_layer = layers.TimeDistributed(layers.Dense(N_FEATURES))(dropout_3)
     
     model = tf.keras.Model(inputs=input_layer, outputs=output_layer)
     # model.compile(optimizer=Adam(learning_rate=1e-4), loss='mse')

@@ -11,14 +11,10 @@ import tensorflow as tf
 from keras import layers
 from keras.src.optimizers import Adam
 from sklearn.model_selection import train_test_split
-
+from configs import configs
 
 BUFFER_SIZE = 60000
 BATCH_SIZE = 128
-window_size = 40
-window_step = 10
-user_split = True
-epochs = 50
 base_path = "/home/s7wu7/project/federated_fall_detection/result"
 model_base_path = f"{base_path}/centeralized"
 result_path = f"{base_path}/classification"
@@ -83,6 +79,16 @@ def build_classifier(latent_size):
     dense_2 = layers.Dense(64, activation='relu')(dropout_1)
     dropout_2 = layers.Dropout(0.3)(dense_2)
     output_layer = layers.Dense(2)(dropout_2)
+    classifier = tf.keras.Model(inputs=input_layer, outputs=output_layer)
+    return classifier
+
+def build_classifier_adl(latent_size, classes_count):
+    input_layer = layers.Input(shape=(latent_size,))
+    dense_1 = layers.Dense(256, activation='relu')(input_layer)
+    dropout_1 = layers.Dropout(0.3)(dense_1)
+    dense_2 = layers.Dense(64, activation='relu')(dropout_1)
+    dropout_2 = layers.Dropout(0.3)(dense_2)
+    output_layer = layers.Dense(classes_count)(dropout_2)
     classifier = tf.keras.Model(inputs=input_layer, outputs=output_layer)
     return classifier
 
@@ -172,36 +178,50 @@ def classification(latent_model, classifier, classifier_optimizer, classificatio
 
 def main():
     # clean_datasets(True)
-    dataset_name = "SiSFall" # or "SiSFall"
+    config_name = "MobiAct" # or "UpFall" or "SiSFall"
+    # ADL_label_index = 15
+    dataset_name = config_name
+    user_split = configs[config_name]['user_split']
+    frequancy = configs[config_name]['frequancy']
+    two_class = configs[config_name]['two_class_classification']
+    normlize = configs[config_name]['normlize']
+    window_size = configs[config_name]['window_size']
+    window_step = configs[config_name]['window_step']
+    extract_fall = configs[config_name]['extract_fall']
+    epochs = configs[config_name]['epochs']
+    balance = configs[config_name]['balance_classification']
+
+    data = load_data(dataset_name=dataset_name, frequancy=frequancy, two_class=two_class, window_size=window_size, 
+                    user_split=user_split, window_step=window_step, normlize=normlize, extract_fall=extract_fall,
+                    balance=balance, reload=False)
+
     if user_split:
-        data = load_data(dataset_name=dataset_name, frequancy="50ms", two_class=True, window_size=window_size, 
-                        user_split=user_split, window_step=window_step, normlize=True, reload=False)
         test_dataset, train_dataset, test_labels, train_labels, test_users, train_users = data
-        plot_data_distribution(train_labels, train_users, f"federated_{dataset_name}")
+        plot_data_distribution(train_labels, train_users, f"centeralized_{dataset_name}")
     else:    
-        data = load_data(dataset_name=dataset_name, frequancy="50ms", two_class=True, window_size=window_size,
-                         user_split=user_split, window_step=window_step, normlize=True, reload=False)
-        train_dataset, _, train_labels, _ = data
+        test_dataset, train_dataset, test_labels, train_labels = data
 
-        train_dataset = train_dataset[train_labels == 0]
-        train_labels = train_labels[train_labels == 0]
+    label_counts = np.unique(train_labels).shape[0]
 
-    
-    classification_train_dataset = tf.data.Dataset.from_tensor_slices((train_dataset, tf.one_hot(train_labels, 2))).shuffle(BUFFER_SIZE).batch(BATCH_SIZE)
-    classification_test_dataset = tf.data.Dataset.from_tensor_slices((test_dataset, tf.one_hot(test_labels, 2))).shuffle(BUFFER_SIZE).batch(BATCH_SIZE)
+    classification_train_dataset = tf.data.Dataset.from_tensor_slices((train_dataset, tf.one_hot(train_labels, label_counts))).shuffle(BUFFER_SIZE).batch(BATCH_SIZE)
+    classification_test_dataset = tf.data.Dataset.from_tensor_slices((test_dataset, tf.one_hot(test_labels, label_counts))).shuffle(BUFFER_SIZE).batch(BATCH_SIZE)
 
     # checkpoint_path = f"{model_base_path}/UpFall_model_state_loss_0.00053_round_90.weights.h5"
-    # checkpoint_path = f"{model_base_path}/SiSFall_model_state_loss_0.00011_round_50.weights.h5"
-    checkpoint_path = '/home/s7wu7/project/federated_fall_detection/src/fl-fall/outputs/2024-12-03/16-03-09/model_state_loss_0.00106_round_50.weights.h5'
-    model = load_model()
+    # checkpoint_path = f"{model_base_path}/SiSFall_model_state_loss_0.00013_round_50.weights.h5"
+    checkpoint_path = f"{model_base_path}/MobiAct_model_state_loss_0.00202_round_20.weights.h5"
+    # checkpoint_path = '/home/s7wu7/project/federated_fall_detection/src/fl-fall/outputs/2024-12-03/16-03-09/model_state_loss_0.00106_round_50.weights.h5'
+    model = load_model(window_size)
     model.load_weights(checkpoint_path)
     latent_model = tf.keras.Model(inputs=model.input, outputs=model.get_layer('latent_layer').output)
     
-    classifier = build_classifier(latent_size=window_size * LATENT_SIZE)
+    if two_class:
+        classifier = build_classifier(latent_size=window_size * LATENT_SIZE)
+    else:
+        classifier = build_classifier_adl(latent_size=window_size * LATENT_SIZE, classes_count=label_counts)
     print(classifier.summary())
     classifier_optimizer = tf.keras.optimizers.Adam(1e-4)
     classification(latent_model, classifier, classifier_optimizer, classification_train_dataset,
-                   classification_test_dataset, epochs, f"federated_{dataset_name}")
+                   classification_test_dataset, epochs, f"centeralized_{dataset_name}")
 
 
 if __name__ == '__main__':

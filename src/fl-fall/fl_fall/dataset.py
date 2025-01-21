@@ -28,6 +28,112 @@ def read_labels():
     df = pd.read_csv(f"{base_path}/activity_map.csv")
     return df
 
+def clean_mobiact(with_gyro):
+    path = f"{raw_file_base_path}/MobiAct_Dataset_v2.0/Annotated Data/"
+    headers = ['TimeStamps', 'rel_time', 'acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z',
+               'euler_x', 'euler_y', 'euler_z', 'label']
+    dataset_name = "MobiAct"
+    meta_json = read_meta()
+    labels = read_labels()
+
+    # clean previous ones
+    for i in range(len(meta_json["files"]) - 1, -1, -1):
+        file = meta_json["files"][i]
+        if file['dataset'] == dataset_name:
+            del meta_json["files"][i]
+    for f in glob.glob(f"./dataset/cleaned/{dataset_name}_*.csv"):
+        os.remove(f)
+
+    this_meta = []
+    activities = os.listdir(path)
+    for activity in activities:
+        if os.path.isdir(path + activity):
+            files = os.listdir(path + activity)
+            for file in files:
+                if file.endswith(".csv"):
+                    parts = file[:-4].split("_")
+                    label_name = str(parts[0])
+                    subject = int(parts[1])
+                    trial = int(parts[2])
+                    if (labels["MobiAct"] == label_name).sum() < 1:
+                        continue
+
+                    temp_df = pd.read_csv(f"{path}/{activity}/{file}")
+                    temp_df.columns = headers
+
+                    temp_df["TimeStamps"] = pd.to_datetime(temp_df["TimeStamps"])
+
+                    if (temp_df["label"] == "LYI").sum() > 0:
+                        lyi_temp_df = temp_df[temp_df['label'] == "LYI"]
+                        lyi_temp_df = lyi_temp_df.reset_index(drop=True)
+                        lyi_temp_df["TimeStamps"] = lyi_temp_df["TimeStamps"] - lyi_temp_df["TimeStamps"].min()
+                        lyi_temp_df["TimeStamps"] = lyi_temp_df["TimeStamps"].dt.total_seconds() * 1000
+                        temp_new_dtype = {"TimeStamps": "int32"}
+                        lyi_temp_df = lyi_temp_df.astype(temp_new_dtype)
+                        lyi_temp_df = lyi_temp_df.reset_index(drop=True)
+                        if with_gyro:
+                            lyi_temp_df = lyi_temp_df[["TimeStamps", "acc_x", "acc_y", "acc_z", 'gyro_x', 'gyro_y', 'gyro_z']]
+                            lyi_temp_df.columns = ["TimeStamps", "X", "Y", "Z", 'GyrX', 'GyrY', 'GyrZ']
+                        else:
+                            lyi_temp_df = lyi_temp_df[["TimeStamps", "acc_x", "acc_y", "acc_z"]]
+                            lyi_temp_df.columns = ["TimeStamps", "X", "Y", "Z"]
+                        is_fall = False
+                        lyi_label_name = "LYI"
+                        lyi_label = labels[labels["MobiAct"] == lyi_label_name]["LABEL"].values[0]
+                        lyi_activity = 12
+                        lyi_label_name = labels[labels["MobiAct"] == lyi_label_name]["ACTIVITY"].values[0]
+                        file_name = f"{dataset_name}_{subject}_{lyi_label_name}_{trial}.csv"
+                        this_meta.append({
+                            "file_name": str(file_name),
+                            "activity": "Fall" if is_fall else "ADL",
+                            "subject": subject,
+                            "trial": trial,
+                            "dataset_label": int(lyi_activity),
+                            "label": int(lyi_label),
+                            "label_name": str(lyi_label_name),
+                            "dataset": dataset_name
+                        })
+
+                        lyi_temp_df.to_csv(f"{base_path}/cleaned/{file_name}", index=False)
+                        print(file_name)
+
+                    temp_df = temp_df[temp_df['label'] == label_name]
+                    temp_df["TimeStamps"] = temp_df["TimeStamps"] - temp_df["TimeStamps"].min()
+                    temp_df["TimeStamps"] = temp_df["TimeStamps"].dt.total_seconds() * 1000
+                    temp_new_dtype = {"TimeStamps": "int32"}
+                    temp_df = temp_df.astype(temp_new_dtype)
+                    temp_df = temp_df.reset_index(drop=True)
+
+                    if with_gyro:
+                        temp_df = temp_df[["TimeStamps", "acc_x", "acc_y", "acc_z", 'gyro_x', 'gyro_y', 'gyro_z']]
+                        temp_df.columns = ["TimeStamps", "X", "Y", "Z", 'GyrX', 'GyrY', 'GyrZ']
+                    else:
+                        temp_df = temp_df[["TimeStamps", "acc_x", "acc_y", "acc_z"]]
+                        temp_df.columns = ["TimeStamps", "X", "Y", "Z"]
+
+                    is_fall = labels[labels["MobiAct"] == label_name]["IS FALL"].values[0]
+                    label = labels[labels["MobiAct"] == label_name]["LABEL"].values[0]
+                    label_name = labels[labels["MobiAct"] == label_name]["ACTIVITY"].values[0]
+
+                    # saving
+                    file_name = f"{dataset_name}_{subject}_{label_name}_{trial}.csv"
+                    this_meta.append({
+                        "file_name": str(file_name),
+                        "activity": "Fall" if is_fall else "ADL",
+                        "subject": subject,
+                        "trial": trial,
+                        "dataset_label": int(label),
+                        "label": int(label),
+                        "label_name": str(label_name),
+                        "dataset": dataset_name
+                    })
+
+                    temp_df.to_csv(f"{base_path}/cleaned/{file_name}", index=False)
+                    print(file_name)
+
+    meta_json['files'] += this_meta
+    save_meta(meta_json)
+
 def clean_up_fall(with_gyro):
     df = pd.read_csv(f"{raw_file_base_path}/Up-Fall/CompleteDataSet.csv")
     belt_columns = df.columns[0:1].tolist() + df.columns[15:21].tolist() + df.columns[-4:].tolist()
@@ -164,8 +270,9 @@ def clean_sis_fall(with_gyro):
     save_meta(meta_json)
 
 def clean_datasets(with_gyro):
-    clean_up_fall(with_gyro)
-    clean_sis_fall(with_gyro)
+    clean_mobiact(with_gyro)
+    # clean_up_fall(with_gyro)
+    # clean_sis_fall(with_gyro)
 
 def read_datasets(frequency, dataset_name):
     meta_json = read_meta()
@@ -192,7 +299,7 @@ def read_datasets(frequency, dataset_name):
     return datasets, labels, files
 
 def load_data(dataset_name="UpFall", frequancy="50ms", window_size=40, window_step=20, user_split=True,
-              two_class=False, scaling=False, normlize=False, reload=False):
+              two_class=False, scaling=False, normlize=False, extract_fall=False, balance=False, reload=False):
     saving_path = f"{base_path}/saved"
     if reload:
         test_dataset = np.load(f"{saving_path}/test_dataset.npy")
@@ -230,6 +337,10 @@ def load_data(dataset_name="UpFall", frequancy="50ms", window_size=40, window_st
             data = datasets[j]
             input_data = data.dropna()
             input_data = input_data.ewm(span=5, adjust=False).mean()
+            # for col in input_data.columns:
+            #     input_data[col] = savgol_filter(
+            #         input_data[col], window_length=5, polyorder=2
+            #     )
             if input_data.shape[0] <= window_size:
                 continue
             windows_df = create_sequences(input_data)
@@ -239,29 +350,35 @@ def load_data(dataset_name="UpFall", frequancy="50ms", window_size=40, window_st
             if two_class:
                 label = np.zeros(windows_df.shape[0])
                 if file["activity"] == "Fall":
-                    momentom = np.abs(windows_df).sum(axis=1)
-                    acc_momentom = momentom[:, 3:].mean(axis=1)
-                    gyro_momentom = momentom[:, :3].mean(axis=1)
-                    highest_acc_momentom = acc_momentom > acc_momentom.min() + (7 * (acc_momentom.max() - acc_momentom.min()) / 10)
-                    highest_gyro_momentom = gyro_momentom > gyro_momentom.min() + (7 * (gyro_momentom.max() - gyro_momentom.min()) / 10)
-                    label[highest_gyro_momentom * highest_acc_momentom] = 1
-                    if label.sum() == 0:
-                        label[highest_acc_momentom] = labels[j]
-                    windows_df = windows_df[label == 1]
-                    label = label[label == 1]
+                    if extract_fall:
+                        momentom = np.abs(windows_df).sum(axis=1)
+                        acc_momentom = momentom[:, 3:].mean(axis=1)
+                        gyro_momentom = momentom[:, :3].mean(axis=1)
+                        highest_acc_momentom = acc_momentom > acc_momentom.min() + (7 * (acc_momentom.max() - acc_momentom.min()) / 10)
+                        highest_gyro_momentom = gyro_momentom > gyro_momentom.min() + (7 * (gyro_momentom.max() - gyro_momentom.min()) / 10)
+                        label[highest_gyro_momentom * highest_acc_momentom] = 1
+                        if label.sum() == 0:
+                            label[highest_acc_momentom] = labels[j]
+                        windows_df = windows_df[label == 1]
+                        label = label[label == 1]
+                    else:
+                        label = np.full(windows_df.shape[0], 1)
             else:
                 if file["activity"] == "Fall":
-                    label = np.zeros(windows_df.shape[0])
-                    momentom = np.abs(windows_df).sum(axis=1)
-                    acc_momentom = momentom[:, 3:].mean(axis=1)
-                    gyro_momentom = momentom[:, :3].mean(axis=1)
-                    highest_acc_momentom = acc_momentom > acc_momentom.min() + (7 * (acc_momentom.max() - acc_momentom.min()) / 10)
-                    highest_gyro_momentom = gyro_momentom > gyro_momentom.min() + (7 * (gyro_momentom.max() - gyro_momentom.min()) / 10)
-                    label[highest_gyro_momentom * highest_acc_momentom] = labels[j]
-                    if label.sum() == 0:
-                        label[highest_acc_momentom] = labels[j]
-                    windows_df = windows_df[label == labels[j]]
-                    label = label[label == labels[j]]
+                    if extract_fall:
+                        label = np.zeros(windows_df.shape[0])
+                        momentom = np.abs(windows_df).sum(axis=1)
+                        acc_momentom = momentom[:, 3:].mean(axis=1)
+                        gyro_momentom = momentom[:, :3].mean(axis=1)
+                        highest_acc_momentom = acc_momentom > acc_momentom.min() + (7 * (acc_momentom.max() - acc_momentom.min()) / 10)
+                        highest_gyro_momentom = gyro_momentom > gyro_momentom.min() + (7 * (gyro_momentom.max() - gyro_momentom.min()) / 10)
+                        label[highest_gyro_momentom * highest_acc_momentom] = labels[j]
+                        if label.sum() == 0:
+                            label[highest_acc_momentom] = labels[j]
+                        windows_df = windows_df[label == labels[j]]
+                        label = label[label == labels[j]]
+                    else:
+                        label = np.full(windows_df.shape[0], labels[j])   
                 else:
                     label = np.full(windows_df.shape[0], labels[j])   
 
@@ -280,8 +397,29 @@ def load_data(dataset_name="UpFall", frequancy="50ms", window_size=40, window_st
         raw_datasets, raw_label, raw_files, frequancy
     )
 
+    if balance:
+        sample_count_each_class = 250
+        balanced_windows_dataset = []
+        balanced_label_dataset = []
+        balanced_final_users = []
+        for temp_user in np.unique(final_users):
+            unique_labels, counts = np.unique(class_datasets[final_users == temp_user], return_counts=True)        
+            for unique_label, count in zip(unique_labels, counts):
+                unique_windows = windows_datasets[((final_users == temp_user) & (class_datasets == unique_label))]
+                unique_index = np.random.choice(
+                    unique_windows.shape[0], min(sample_count_each_class, count), replace=True
+                )
+                balanced_windows_dataset.append(unique_windows[unique_index])
+                balanced_label_dataset.append(labels_datasets[class_datasets == unique_label][unique_index])
+                balanced_final_users.append(np.full(min(sample_count_each_class, count), temp_user))
+
+        windows_datasets = np.concatenate(balanced_windows_dataset)
+        labels_datasets = np.concatenate(balanced_label_dataset)
+        final_users = np.concatenate(balanced_final_users)
+
+
     if user_split:
-        train_users, test_users = train_test_split(np.unique(final_users), test_size=0.4, random_state=42)
+        train_users, test_users = train_test_split(np.unique(final_users), test_size=0.3, random_state=42)
         train_users_index = np.isin(final_users, train_users)
         test_users_index = np.isin(final_users, test_users)
         
