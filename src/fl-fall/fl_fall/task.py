@@ -19,7 +19,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 train_dataset, train_labels, unique_train_users, train_users, test_dataset = None, None, None, None, None
 
 BUFFER_SIZE = 60000
-BATCH_SIZE = 512
+BATCH_SIZE = 256
 LATENT_SIZE = 32
 LAYER_SIZE = 64
 TIME_STEPS = 40

@@ -3,10 +3,10 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 
-def plot_classification_training_result(file_path):
+def plot_classification_training_result(classification_file_path):
     base_path = "/home/s7wu7/project/federated_fall_detection/result/classification"
         # Load JSON data from a file
-    with open(f"{base_path}/{file_path}", 'r') as file:
+    with open(f"{base_path}/{classification_file_path}", 'r') as file:
         data = json.load(file)
         
     # Extract data
@@ -44,7 +44,7 @@ def plot_classification_training_result(file_path):
     plt.ylabel('Loss')
     plt.legend()
     plt.grid(True)
-    plt.savefig(f"{base_path}/{file_path[:-13]}_loss.png")
+    plt.savefig(f"{base_path}/{classification_file_path[:-13]}_loss.png")
 
     # Plotting Train and Test Accuracy
     plt.figure(figsize=(12, 6))
@@ -55,7 +55,7 @@ def plot_classification_training_result(file_path):
     plt.ylabel('Accuracy')
     plt.legend()
     plt.grid(True)
-    plt.savefig(f"{base_path}/{file_path[:-13]}_accuracy.png")
+    plt.savefig(f"{base_path}/{classification_file_path[:-13]}_accuracy.png")
 
     # Plotting Precision, Recall, and F1 Score
     plt.figure(figsize=(12, 6))
@@ -67,13 +67,13 @@ def plot_classification_training_result(file_path):
     plt.ylabel('Score')
     plt.legend()
     plt.grid(True)
-    plt.savefig(f"{base_path}/{file_path[:-13]}_metrics.png")
+    plt.savefig(f"{base_path}/{classification_file_path[:-13]}_metrics.png")
 
     
-def plot_reconstruction_training_result(file_path):
+def plot_reconstruction_training_result(autoencoder_file_path):
     base_path = "/home/s7wu7/project/federated_fall_detection/result/centeralized"
     # Load JSON data from a file
-    with open(f"{base_path}/{file_path}", 'r') as file:
+    with open(f"{base_path}/{autoencoder_file_path}", 'r') as file:
         data = json.load(file)
 
     # Extract data
@@ -94,19 +94,19 @@ def plot_reconstruction_training_result(file_path):
 
     # Display the plot
     plt.grid(True)
-    plt.savefig(f"{base_path}/{file_path[:-5]}.png")
+    plt.savefig(f"{base_path}/{autoencoder_file_path[:-5]}.png")
         
         
-def plot_test_metrics(federated_file_path, centeralazied_file_path):
+def plot_test_metrics(federated_classification_file_path, centeralazied_classification_file_path):
     # Plotting Precision, Recall, and F1 Score
-    fig = plt.figure(figsize=(18, 24))
+    base_path = "/home/s7wu7/project/federated_fall_detection/result/classification"
     
+    fig = plt.figure(figsize=(18, 24))
     plots = fig.subplots(4, 1, sharex=True)
 
-    if federated_file_path is not None:
-        base_path = "/home/s7wu7/project/federated_fall_detection/result/classification"
+    if federated_classification_file_path is not None:
         # Load JSON data from a file
-        with open(f"{base_path}/{federated_file_path}", 'r') as file:
+        with open(f"{base_path}/{federated_classification_file_path}", 'r') as file:
             data = json.load(file)
             
         # Extract data
@@ -137,9 +137,8 @@ def plot_test_metrics(federated_file_path, centeralazied_file_path):
         plots[2].plot(fl_epochs, fl_recall_list, linewidth=5, label='Federated Recall')
         plots[3].plot(fl_epochs, fl_f1_score_list, linewidth=5, label='Federated F1 Score')
 
-    if centeralazied_file_path is not None:
-        base_path = "/home/s7wu7/project/federated_fall_detection/result/classification"
-        with open(f"{base_path}/{centeralazied_file_path}", 'r') as file:
+    if centeralazied_classification_file_path is not None:
+        with open(f"{base_path}/{centeralazied_classification_file_path}", 'r') as file:
             data = json.load(file)    
 
         # Extract data
@@ -184,46 +183,55 @@ def plot_test_metrics(federated_file_path, centeralazied_file_path):
     plt.tight_layout()
     plt.savefig(f"model_metrics.png", transparent=True)
 
-def plot_test_losses():
-    file_path = "/home/s7wu7/project/federated_fall_detection/result/centeralized/SiSFall_results.json"
-    # Load JSON data from a file
-    with open(file_path, 'r') as file:
-        data = json.load(file)
-    # Extract data
-    aen_epochs = [entry["epoch"] for entry in data["centralized_evaluate"]]
-    aen_test_loss = [entry["test_loss"] for entry in data["centralized_evaluate"]]
+def plot_test_losses(classifier_file, autoencoder_file, fed_classifier_file, fed_autoencoder_file):
+    if autoencoder_file:
+        file_path = f"/home/s7wu7/project/federated_fall_detection/result/centeralized/{autoencoder_file}"
+        # Load JSON data from a file
+        with open(file_path, 'r') as file:
+            data = json.load(file)
+        # Extract data
+        aen_epochs = [entry["epoch"] for entry in data["centralized_evaluate"]]
+        aen_test_loss = [entry["test_loss"] for entry in data["centralized_evaluate"]]
 
-    file_path = "/home/s7wu7/project/federated_fall_detection/src/fl-fall/outputs/2024-12-03/16-03-09/results.json"
-    # Load JSON data from a file
-    with open(file_path, 'r') as file:
-        data = json.load(file)
-    # Extract data
-    fl_aen_epochs = [entry["round"] for entry in data["federated_evaluate"]]
-    fl_aen_test_loss = [entry["federated_evaluate_loss"] for entry in data["federated_evaluate"]]
+    if fed_autoencoder_file:
+        file_path = f"/home/s7wu7/project/federated_fall_detection/src/fl-fall/{fed_autoencoder_file}"
+        # outputs/2024-12-03/16-03-09/results.json
+        # Load JSON data from a file
+        with open(file_path, 'r') as file:
+            data = json.load(file)
+        # Extract data
+        fl_aen_epochs = [entry["round"] for entry in data["federated_evaluate"]]
+        fl_aen_test_loss = [entry["federated_evaluate_loss"] for entry in data["federated_evaluate"]]
 
-    file_path = "/home/s7wu7/project/federated_fall_detection/result/classification/SiSFall_results.json"
-    # Load JSON data from a file
-    with open(file_path, 'r') as file:
-        data = json.load(file)
-    # Extract data
-    cl_epochs = [entry["epoch"] for entry in data["centralized_evaluate"]]
-    cl_test_loss = [entry["test_loss"] for entry in data["centralized_evaluate"]]
-    
-    file_path = "/home/s7wu7/project/federated_fall_detection/result/classification/federated_SiSFall_results.json"
-    # Load JSON data from a file
-    with open(file_path, 'r') as file:
-        data = json.load(file)
-    # Extract data
-    fl_cl_epochs = [entry["epoch"] for entry in data["centralized_evaluate"]]
-    fl_cl_test_loss = [entry["test_loss"] for entry in data["centralized_evaluate"]]
+    if classifier_file:
+        file_path = f"/home/s7wu7/project/federated_fall_detection/result/classification/{classifier_file}"
+        # Load JSON data from a file
+        with open(file_path, 'r') as file:
+            data = json.load(file)
+        # Extract data
+        cl_epochs = [entry["epoch"] for entry in data["centralized_evaluate"]]
+        cl_test_loss = [entry["test_loss"] for entry in data["centralized_evaluate"]]
+        
+    if fed_classifier_file:
+        file_path = f"/home/s7wu7/project/federated_fall_detection/result/classification/{fed_classifier_file}"
+        # Load JSON data from a file
+        with open(file_path, 'r') as file:
+            data = json.load(file)
+        # Extract data
+        fl_cl_epochs = [entry["epoch"] for entry in data["centralized_evaluate"]]
+        fl_cl_test_loss = [entry["test_loss"] for entry in data["centralized_evaluate"]]
         
     # Plotting
     fig = plt.figure(figsize=(16, 12))
     plots = fig.subplots(2, 1, sharex=True)
-    plots[0].plot(aen_epochs, aen_test_loss,linewidth=5, label='Centeralized Autoencoder Test Loss')
-    plots[0].plot(fl_aen_epochs, fl_aen_test_loss,linewidth=5, label='Federated Autoencoder Test Loss')
-    plots[1].plot(cl_epochs, cl_test_loss,linewidth=5, label='Centeralized Classification Test Loss')
-    plots[1].plot(fl_cl_epochs, fl_cl_test_loss,linewidth=5, label='Federated Classification Test Loss')
+    if autoencoder_file:
+        plots[0].plot(aen_epochs, aen_test_loss,linewidth=5, label='Centeralized Autoencoder Test Loss')
+    if fed_autoencoder_file:
+        plots[0].plot(fl_aen_epochs, fl_aen_test_loss,linewidth=5, label='Federated Autoencoder Test Loss')
+    if classifier_file:
+        plots[1].plot(cl_epochs, cl_test_loss,linewidth=5, label='Centeralized Classification Test Loss')
+    if fed_classifier_file:
+        plots[1].plot(fl_cl_epochs, fl_cl_test_loss,linewidth=5, label='Federated Classification Test Loss')
     
     # Adding title and labels
     # plots[0].set_title('Autoencoder and Classifier Test Loss Over Epochs')
@@ -244,14 +252,16 @@ def main():
     files = [
         # "UpFall_results.json",
         # "federated_SiSFall_results.json",
-        ("centeralized_MobiAct_results.json", None)
+        ("centeralized_MobiAct_results.json", "MobiAct_results.json", None, None)
     ]
     for temp_file in files:
-        cen_file, fed_file = temp_file
-        # plot_test_losses()
-        plot_test_metrics(centeralazied_file_path=cen_file, federated_file_path=fed_file)
-        plot_reconstruction_training_result(cen_file)
-        plot_classification_training_result(cen_file)
+        classifier_file, autoencoder_file, fed_classifier_file, fed_autoencoder_file = temp_file
+        plot_classification_training_result(classifier_file)
+        plot_reconstruction_training_result(autoencoder_file)
+        plot_test_metrics(fed_classifier_file, classifier_file)
+        plot_test_losses(classifier_file, autoencoder_file, fed_classifier_file, fed_autoencoder_file)
+        
+        
     
 if __name__ == '__main__':
     main()

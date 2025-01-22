@@ -74,9 +74,9 @@ def plot_data_distribution(train_labels, train_users, dataset_name):
 
 def build_classifier(latent_size):
     input_layer = layers.Input(shape=(latent_size,))
-    dense_1 = layers.Dense(256, activation='relu')(input_layer)
+    dense_1 = layers.Dense(512, activation='relu')(input_layer)
     dropout_1 = layers.Dropout(0.3)(dense_1)
-    dense_2 = layers.Dense(64, activation='relu')(dropout_1)
+    dense_2 = layers.Dense(128, activation='relu')(dropout_1)
     dropout_2 = layers.Dropout(0.3)(dense_2)
     output_layer = layers.Dense(2)(dropout_2)
     classifier = tf.keras.Model(inputs=input_layer, outputs=output_layer)
@@ -208,7 +208,7 @@ def main():
 
     # checkpoint_path = f"{model_base_path}/UpFall_model_state_loss_0.00053_round_90.weights.h5"
     # checkpoint_path = f"{model_base_path}/SiSFall_model_state_loss_0.00013_round_50.weights.h5"
-    checkpoint_path = f"{model_base_path}/MobiAct_model_state_loss_0.00202_round_20.weights.h5"
+    checkpoint_path = f"{model_base_path}/MobiAct_model_state_loss_0.00275_round_50.weights.h5"
     # checkpoint_path = '/home/s7wu7/project/federated_fall_detection/src/fl-fall/outputs/2024-12-03/16-03-09/model_state_loss_0.00106_round_50.weights.h5'
     model = load_model(window_size)
     model.load_weights(checkpoint_path)

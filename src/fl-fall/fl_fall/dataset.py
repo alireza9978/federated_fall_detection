@@ -397,21 +397,58 @@ def load_data(dataset_name="UpFall", frequancy="50ms", window_size=40, window_st
         raw_datasets, raw_label, raw_files, frequancy
     )
 
+    if dataset_name == "MobiAct":
+        clean_windows = []
+        clean_labels = []
+        clean_classes = []
+        clean_users = []
+        for temp_class in np.unique(class_datasets):
+            temp_class_windows = []
+            for temp_col in range(6):
+                temp_dataset = windows_datasets[class_datasets == temp_class][:, :, temp_col]
+                flat_temp_dataset = np.reshape(temp_dataset, -1)
+                q75, q25 = np.percentile(flat_temp_dataset, [75, 25])
+                iqr = q75 - q25
+                outliers = (flat_temp_dataset < q25 - (1.2 * iqr)) | (flat_temp_dataset > q75 + (1.2 * iqr))
+                outliers = np.reshape(outliers, temp_dataset.shape)
+                temp_class_windows.append(outliers.any(axis=1))
+            not_outlier = (np.stack(temp_class_windows).sum(axis=0) < 4)
+            temp_clean_windows = windows_datasets[class_datasets == temp_class][not_outlier]
+            temp_clean_users = final_users[class_datasets == temp_class][not_outlier]
+            clean_windows.append(temp_clean_windows)
+            clean_users.append(temp_clean_users)
+            clean_labels.append(np.full(temp_clean_windows.shape[0], labels_datasets[class_datasets == temp_class][0]))
+            clean_classes.append(np.full(temp_clean_windows.shape[0], temp_class))
+        windows_datasets = np.concatenate(clean_windows)
+        final_users = np.concatenate(clean_users)
+        labels_datasets = np.concatenate(clean_labels)
+        class_datasets = np.concatenate(clean_classes)
+
     if balance:
-        sample_count_each_class = 250
+        sample_count_each_class = 100
         balanced_windows_dataset = []
         balanced_label_dataset = []
         balanced_final_users = []
         for temp_user in np.unique(final_users):
             unique_labels, counts = np.unique(class_datasets[final_users == temp_user], return_counts=True)        
             for unique_label, count in zip(unique_labels, counts):
+                is_fall = labels_datasets[class_datasets == unique_label][0] == 1
+                
                 unique_windows = windows_datasets[((final_users == temp_user) & (class_datasets == unique_label))]
-                unique_index = np.random.choice(
-                    unique_windows.shape[0], min(sample_count_each_class, count), replace=True
-                )
+                if is_fall:
+                    unique_index = np.random.choice(
+                        unique_windows.shape[0], sample_count_each_class, replace=True
+                    )
+                else:
+                    unique_index = np.random.choice(
+                        unique_windows.shape[0], min(sample_count_each_class, count), replace=True
+                    )
                 balanced_windows_dataset.append(unique_windows[unique_index])
                 balanced_label_dataset.append(labels_datasets[class_datasets == unique_label][unique_index])
-                balanced_final_users.append(np.full(min(sample_count_each_class, count), temp_user))
+                if is_fall:
+                    balanced_final_users.append(np.full(sample_count_each_class, temp_user))
+                else:
+                    balanced_final_users.append(np.full(min(sample_count_each_class, count), temp_user))
 
         windows_datasets = np.concatenate(balanced_windows_dataset)
         labels_datasets = np.concatenate(balanced_label_dataset)

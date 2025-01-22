@@ -200,13 +200,15 @@ def main():
         # train_dataset = train_dataset[train_labels == 0]
         # train_labels = train_labels[train_labels == 0]
     
+    print(np.unique(train_labels, return_counts=True))
+    
     x_train, x_val = train_test_split(train_dataset, test_size=0.15, random_state=42)
     train_dataset = tf.data.Dataset.from_tensor_slices(x_train).shuffle(BUFFER_SIZE).batch(BATCH_SIZE)
     test_dataset = tf.data.Dataset.from_tensor_slices(x_val).shuffle(BUFFER_SIZE).batch(BATCH_SIZE)
     
     model = load_model(window_size)
     print(model.summary())
-    model_optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
+    model_optimizer = tf.keras.optimizers.Adam(learning_rate=0.0005)
     train(model, model_optimizer, train_dataset, test_dataset, epochs, dataset_name)
     
     
