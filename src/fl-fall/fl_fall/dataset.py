@@ -456,7 +456,7 @@ def load_data(dataset_name="UpFall", frequancy="50ms", window_size=40, window_st
 
 
     if user_split:
-        train_users, test_users = train_test_split(np.unique(final_users), test_size=0.3, random_state=42)
+        train_users, test_users = train_test_split(np.unique(final_users), test_size=0.4, random_state=42)
         train_users_index = np.isin(final_users, train_users)
         test_users_index = np.isin(final_users, test_users)
         

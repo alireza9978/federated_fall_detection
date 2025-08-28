@@ -86,6 +86,7 @@ def plot_data_distribution(train_labels, train_users, dataset_name):
 
     # Show the plot
     plt.savefig(f"{result_path}/{dataset_name}_training_data_distribution.png")
+    plt.savefig(f"{result_path}/{dataset_name}_training_data_distribution.svg")
 
         
 def generate_and_save_images(model, epoch, test_input, dataset_name, sample_numbers=10):
@@ -106,6 +107,7 @@ def generate_and_save_images(model, epoch, test_input, dataset_name, sample_numb
 
     # plt.tight_layout()
     plt.savefig(f"{result_path}/{dataset_name}_reconstructed_epoch_{epoch}.png")
+    plt.savefig(f"{result_path}/{dataset_name}_reconstructed_epoch_{epoch}.svg")
     plt.close()
 
 @tf.function
@@ -173,7 +175,7 @@ def train(model, model_optimizer, dataset, test_dataset, epochs, dataset_name):
         
 def main():
     # clean_datasets(True)
-    config_name = "MobiAct" # or "UpFall"
+    config_name = "SiSFall" # or "UpFall"
     # ADL_label_index = 15
     dataset_name = config_name
     user_split = configs[config_name]['user_split']
@@ -191,18 +193,13 @@ def main():
                     balance=balance, reload=False)
     if user_split:
         train_dataset, _, train_labels, _, train_users, _ = data
-        # train_dataset = train_dataset[train_labels > ADL_label_index]
-        # train_users = train_users[train_labels > ADL_label_index]
-        # train_labels = train_labels[train_labels > ADL_label_index]
         plot_data_distribution(train_labels, train_users, dataset_name)
     else:    
         train_dataset, _, train_labels, _ = data
-        # train_dataset = train_dataset[train_labels == 0]
-        # train_labels = train_labels[train_labels == 0]
     
     print(np.unique(train_labels, return_counts=True))
     
-    x_train, x_val = train_test_split(train_dataset, test_size=0.15, random_state=42)
+    x_train, x_val = train_test_split(train_dataset, test_size=0.01, random_state=42)
     train_dataset = tf.data.Dataset.from_tensor_slices(x_train).shuffle(BUFFER_SIZE).batch(BATCH_SIZE)
     test_dataset = tf.data.Dataset.from_tensor_slices(x_val).shuffle(BUFFER_SIZE).batch(BATCH_SIZE)
     
